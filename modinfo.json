@@ -1,0 +1,10 @@
+{
+  "type": "code",
+  "modid": "waypointtogetherreborn",
+  "name": "Waypoint Together Reborn",
+  "authors": ["Jeffyshewan"],
+  "version": "2.3.0",
+  "dependencies": {
+    "game": "1.22.0"
+  }
+}
