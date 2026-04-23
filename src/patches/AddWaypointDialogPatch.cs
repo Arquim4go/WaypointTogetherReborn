@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
@@ -10,17 +9,20 @@ using Vintagestory.GameContent;
 
 namespace WaypointTogetherReborn.patches;
 
-public static class WaypointShareSwitchPatch
+public static class AddWaypointDialogPatch
 {
     public static readonly MethodInfo AddShareComponentMethod =
-        AccessTools.Method(typeof(WaypointShareSwitchPatch), nameof(AddShareComponent));
+        AccessTools.Method(typeof(AddWaypointDialogPatch), nameof(AddShareComponent));
 
-    public static GuiComposer AddShareComponent(GuiComposer composer, ref ElementBounds leftColumn, ref ElementBounds rightColumn)
+    public static GuiComposer AddShareComponent(GuiComposer composer, ref ElementBounds leftColumn,
+        ref ElementBounds rightColumn)
     {
         if (composer.GetSwitch(Settings.ShouldShareSwitchName) == null)
         {
-            composer = composer.AddStaticText(Lang.Get("waypointtogetherreborn:share"), CairoFont.WhiteSmallText(), leftColumn = leftColumn.BelowCopy(0, 9))
-                .AddSwitch((bool _) => { }, rightColumn = rightColumn.BelowCopy(0, 40).WithFixedWidth(200), Settings.ShouldShareSwitchName);
+            composer = composer.AddStaticText(Lang.Get("waypointtogetherreborn:share"), CairoFont.WhiteSmallText(),
+                    leftColumn = leftColumn.BelowCopy(0, 9))
+                .AddSwitch((bool _) => { }, rightColumn = rightColumn.BelowCopy(0, 40).WithFixedWidth(200),
+                    Settings.ShouldShareSwitchName);
 
             var sw = composer.GetSwitch(Settings.ShouldShareSwitchName);
             sw.On = ModConfig.ClientConfig?.DefaultSharing ?? false;
@@ -55,29 +57,16 @@ public static class WaypointShareSwitchPatch
 }
 
 [HarmonyPatch(typeof(GuiDialogAddWayPoint), "ComposeDialog")]
-public static class AddWaypointShareSwitchPatch
+public static class AddWaypointSharePatch
 {
-    public static GuiComposer AddShareComponent(GuiComposer composer, ref ElementBounds leftColumn, ref ElementBounds rightColumn)
+    public static GuiComposer AddShareComponent(GuiComposer composer, ref ElementBounds leftColumn,
+        ref ElementBounds rightColumn)
     {
-        return WaypointShareSwitchPatch.AddShareComponent(composer, ref leftColumn, ref rightColumn);
+        return AddWaypointDialogPatch.AddShareComponent(composer, ref leftColumn, ref rightColumn);
     }
 
     public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
-        return WaypointShareSwitchPatch.Transpiler(instructions);
-    }
-}
-
-[HarmonyPatch(typeof(GuiDialogEditWayPoint), "ComposeDialog")]
-public static class EditWaypointShareSwitchPatch
-{
-    public static GuiComposer AddShareComponent(GuiComposer composer, ref ElementBounds leftColumn, ref ElementBounds rightColumn)
-    {
-        return WaypointShareSwitchPatch.AddShareComponent(composer, ref leftColumn,  ref rightColumn);
-    }
-
-    public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        return WaypointShareSwitchPatch.Transpiler(instructions);
+        return AddWaypointDialogPatch.Transpiler(instructions);
     }
 }
