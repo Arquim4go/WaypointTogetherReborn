@@ -20,7 +20,7 @@ class PatchGuiDialogAddWayPointOnSave
             {
                 Core mod = capi.ModLoader.GetModSystem<Core>();
                 mod.client.network.ShareWaypoint(message, capi.World.Player.PlayerUID);
-                string messageToTheUser = Lang.Get("waypointtogetherreborn:waypoint-shared");
+                string messageToTheUser = Lang.Get("WaypointTogetherReborn:waypoint-shared");
                 capi.ShowChatMessage(messageToTheUser);
             }
             capi.SendChatMessage(message);

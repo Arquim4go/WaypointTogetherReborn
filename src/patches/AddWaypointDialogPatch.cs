@@ -19,7 +19,7 @@ public static class AddWaypointDialogPatch
     {
         if (composer.GetSwitch(Settings.ShouldShareSwitchName) == null)
         {
-            composer = composer.AddStaticText(Lang.Get("waypointtogetherreborn:share"), CairoFont.WhiteSmallText(),
+            composer = composer.AddStaticText(Lang.Get("WaypointTogetherReborn:share"), CairoFont.WhiteSmallText(),
                     leftColumn = leftColumn.BelowCopy(0, 9))
                 .AddSwitch((bool _) => { }, rightColumn = rightColumn.BelowCopy(0, 40).WithFixedWidth(200),
                     Settings.ShouldShareSwitchName);

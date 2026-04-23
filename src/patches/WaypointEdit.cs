@@ -24,7 +24,7 @@ class PatchGuiDialogEditWayPointOnSave
                 var mapLayer = (maplayers.Find(x => x is WaypointMapLayer) as WaypointMapLayer);
                 var waypoint = Traverse.Create(instance).Field("waypoint").GetValue<Waypoint>();
                 mod.client.network.ShareWaypoint(message, waypoint.Guid);
-                string messageToTheUser = Lang.Get("WaypointTogetherReborn.waypoint-shared");
+                string messageToTheUser = Lang.Get("WaypointTogetherReborn:waypoint-shared");
                 capi.ShowChatMessage(messageToTheUser);
             }
             capi.SendChatMessage(message);
