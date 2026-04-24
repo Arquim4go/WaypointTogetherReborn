@@ -1,7 +1,9 @@
+using System.Linq;
 using Vintagestory.API.Client;
+using Vintagestory.API.Common;
+using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 using WaypointTogetherReborn.network.packets;
-using WaypointTogetherReborn.server;
 
 namespace WaypointTogetherReborn.client;
 
@@ -9,76 +11,77 @@ public class ClientNetwork
 {
     private readonly ICoreClientAPI api;
     private readonly IClientNetworkChannel channel;
-
-    string lastMessage = "";
+    private string lastMessage = "";
 
     public ClientNetwork(ICoreClientAPI api)
     {
         this.api = api;
-
         channel = api.Network.RegisterChannel("jeff.waypointtogetherreborn");
         channel.RegisterMessageType<ShareWaypointPacket>();
-        channel.RegisterMessageType<ShareWaypointPacketFromServer>();
-        channel.SetMessageHandler<ShareWaypointPacketFromServer>(this.HandlePacket);
+        channel.SetMessageHandler<ShareWaypointPacket>(HandlePacket);
     }
 
-    public void ShareWaypoint(string message, string byUser)
+    // Pour le Add (sans position)
+    public void ShareWaypoint(string message)
     {
-        if (message != null && message != "")
+        if (string.IsNullOrEmpty(message)) return;
+        channel.SendPacket(new ShareWaypointPacket(message, api.World.Player.PlayerUID));
+    }
+
+    // Pour le Edit (avec position)
+    public void ShareWaypoint(string message, Vec3d pos)
+    {
+        if (string.IsNullOrEmpty(message)) return;
+        if (pos == null)
         {
-            channel.SendPacket(new ShareWaypointPacket(message, byUser));
+            ShareWaypoint(message);
+            return;
         }
+        channel.SendPacket(new ShareWaypointPacket(message, api.World.Player.PlayerUID, pos.X, pos.Y, pos.Z));
     }
 
-    private void HandlePacket(ShareWaypointPacketFromServer packet)
+    private void HandlePacket(ShareWaypointPacket packet)
     {
-        if (lastMessage == packet.Message)
+        if (lastMessage == packet.Message) return;
+        lastMessage = packet.Message;
+
+        if (!packet.Message.StartsWith("/waypoint modify"))
         {
+            api.SendChatMessage(packet.Message);
             return;
         }
 
-        var currentPlayer = api.World.Player;
-        if (packet.Message.StartsWith("/waypoint modify"))
-        {
-            // Modify currently is in format of /waypoint modify <id> <color> <icon> <pinned> <name>
-            string[] split = packet.Message.Split(' ');
-            string id = split[2];
-            string color = split[3];
-            string icon = split[4];
-            string pinned = split[5];
-            string name = split[6];
+        // Edit : cherche le waypoint par position
+        string[] split = packet.Message.Split(' ');
+        string color = split[3];
+        string icon = split[4];
+        string pinned = split[5];
+        string name = string.Join(' ', split.Skip(6));
 
-            var maplayers = api.ModLoader.GetModSystem<WorldMapManager>().MapLayers;
-            var waypointLayer = (maplayers.Find(x => x is WaypointMapLayer) as WaypointMapLayer);
-            Waypoint existing = packet.ExistingWaypoint;
-            int myExistingId = -1;
-            if (waypointLayer != null && waypointLayer.ownWaypoints != null)
-            {
-                myExistingId = waypointLayer.ownWaypoints.FindIndex(x => x.Position.X == existing.Position.X 
-                                                                         && x.Position.Y == existing.Position.Y 
-                                                                         && x.Position.Z == existing.Position.Z);
-            }
-            if (myExistingId != -1)
-            {
-                // send modify, just replace id
-                string message = "/waypoint modify " + myExistingId + " " + color + " " + icon + " " + pinned + " " + name;
-                api.SendChatMessage(message);
-            }
-            else
-            {
-                int worldLen = api.World.Config.GetAsInt("worldLength") / 2;
-                double x = existing.Position.X - worldLen;
-                double y = existing.Position.Y - worldLen;
-                double z = existing.Position.Z - worldLen;
-                // we want /waypoint addati [icon] [x] [y] [z] [pinned] [color] [title]
-                string message = $"/waypoint addati {icon} {x} {y} {z} {pinned} {color} {name}";
-                api.SendChatMessage(message);
-            }
+        var maplayers = api.ModLoader.GetModSystem<WorldMapManager>().MapLayers;
+        var waypointLayer = maplayers.Find(x => x is WaypointMapLayer) as WaypointMapLayer;
+        if (waypointLayer == null) return;
+
+        int myExistingId = -1;
+        if (waypointLayer.Waypoints != null)
+        {
+            myExistingId = waypointLayer.Waypoints.FindIndex(x =>
+                x.Position != null &&
+                x.Position.X == packet.PosX &&
+                x.Position.Y == packet.PosY &&
+                x.Position.Z == packet.PosZ);
+        }
+
+        if (myExistingId != -1)
+        {
+            api.SendChatMessage($"/waypoint modify {myExistingId} {color} {icon} {pinned} {name}");
         }
         else
         {
-            api.SendChatMessage(packet.Message);
+            double x = packet.PosX - (api.World.BlockAccessor.MapSizeX / 2);
+            double y = packet.PosY;
+            double z = packet.PosZ - (api.World.BlockAccessor.MapSizeZ / 2);
+            api.SendChatMessage($"/waypoint addati {icon} {x} {y} {z} {pinned} {color} {name}");
         }
-        lastMessage = packet.Message;
     }
 }

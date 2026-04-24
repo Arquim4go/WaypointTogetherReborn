@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
@@ -8,44 +10,101 @@ using Vintagestory.GameContent;
 
 namespace WaypointTogetherReborn.patches;
 
-[HarmonyPatch(typeof(GuiDialogEditWayPoint), "onSave")]
-class PatchGuiDialogEditWayPointOnSave
+[HarmonyPatch(typeof(GuiDialogEditWayPoint), "ComposeDialog")]
+public static class EditWaypointComposeDialogPatch
 {
+    public static readonly MethodInfo EditShareComponentMethod =
+        AccessTools.Method(typeof(EditWaypointComposeDialogPatch), nameof(EditShareComponent));
 
-    public static readonly MethodInfo toReplaceWith = AccessTools.Method(typeof(PatchGuiDialogEditWayPointOnSave), nameof(BroadcastWaypoint));
-    public static void BroadcastWaypoint(ICoreClientAPI capi, string message, GuiDialogEditWayPoint instance)
+    public static GuiComposer EditShareComponent(GuiComposer composer, ref ElementBounds leftColumn,
+        ref ElementBounds rightColumn)
     {
-        if (capi != null)
+        if (composer.GetSwitch(Settings.ShouldShareSwitchName) == null)
         {
-            if (instance.SingleComposer.GetSwitch(Settings.ShouldShareSwitchName).On)
-            {
-                WaypointTogetherReborn.Core mod = capi.ModLoader.GetModSystem<WaypointTogetherReborn.Core>();
-                var maplayers = capi.ModLoader.GetModSystem<WorldMapManager>().MapLayers;
-                var mapLayer = (maplayers.Find(x => x is WaypointMapLayer) as WaypointMapLayer);
-                var waypoint = Traverse.Create(instance).Field("waypoint").GetValue<Waypoint>();
-                mod.client.network.ShareWaypoint(message, waypoint.Guid);
-                string messageToTheUser = Lang.Get("WaypointTogetherReborn:waypoint-shared");
-                capi.ShowChatMessage(messageToTheUser);
-            }
-            capi.SendChatMessage(message);
+            composer = composer
+                .AddStaticText(Lang.Get("WaypointTogetherReborn:share"), CairoFont.WhiteSmallText(),
+                    leftColumn = leftColumn.BelowCopy(0, 9))
+                .AddSwitch((bool _) => { }, rightColumn = rightColumn.BelowCopy(0, 5).WithFixedWidth(200),
+                    Settings.ShouldShareSwitchName);
+
+            var sw = composer.GetSwitch(Settings.ShouldShareSwitchName);
+            sw.On = ModConfig.ClientConfig?.DefaultSharing ?? false;
         }
+
+        return composer;
     }
+
+    public static void Postfix(GuiDialogEditWayPoint __instance)
+    {
+        var sw = __instance.SingleComposer?.GetSwitch(Settings.ShouldShareSwitchName);
+        if (sw == null) return;
+        sw.On = ModConfig.ClientConfig?.DefaultSharing ?? false;
+    }
+
     public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
-        List<CodeInstruction> list = new();
+        var found = false;
         foreach (var instruction in instructions)
         {
-            if (instruction.opcode == OpCodes.Callvirt && (MethodInfo)instruction.operand == Settings.SendChatMessageMethod)
+            if (!found && instruction.opcode == OpCodes.Ldstr && (string)instruction.operand == "waypoint-color")
             {
-                list.RemoveAt(list.Count - 1); // remove 'ldnull'
-                list.Add(new CodeInstruction(OpCodes.Ldarg_0)); // load 'this'
-                list.Add(new CodeInstruction(OpCodes.Call, toReplaceWith));
+                yield return new CodeInstruction(OpCodes.Ldloca_S, 0);
+                yield return new CodeInstruction(OpCodes.Ldloca_S, 1);
+                yield return new CodeInstruction(OpCodes.Call, EditShareComponentMethod);
+                found = true;
             }
-            else
-            {
-                list.Add(instruction);
-            }
+
+            yield return instruction;
         }
-        return list;
+
+        if (!found)
+            throw new ArgumentException("Cannot find `waypoint-color` in GuiDialogEditWayPoint.ComposeDialog");
+    }
+}
+
+[HarmonyPatch(typeof(GuiDialogEditWayPoint), "onSave")]
+public static class EditWaypointOnSavePatch
+{
+    public static readonly MethodInfo toReplaceWith =
+        AccessTools.Method(typeof(EditWaypointOnSavePatch), nameof(BroadcastWaypoint));
+
+    public static void BroadcastWaypoint(ICoreClientAPI capi, string message)
+    {
+        var dialog = capi.Gui.OpenedGuis
+            .OfType<GuiDialogEditWayPoint>()
+            .FirstOrDefault();
+
+        if (dialog?.SingleComposer.GetSwitch(Settings.ShouldShareSwitchName)?.On == true)
+        {
+            var waypoint = Traverse.Create(dialog).Field("waypoint").GetValue<Waypoint>();
+            Core mod = capi.ModLoader.GetModSystem<Core>();
+            mod.client?.network.ShareWaypoint(message, waypoint?.Position);
+            capi.ShowChatMessage(Lang.Get("WaypointTogetherReborn:waypoint-shared"));
+        }
+
+        capi.SendChatMessage(message);
+    }
+
+    public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var found = false;
+        foreach (var instruction in instructions)
+        {
+            if (!found && instruction.opcode == OpCodes.Callvirt
+                       && instruction.operand is MethodInfo method
+                       && method == Settings.SendChatMessageMethod)
+            {
+                // Stack: [capi, command, null]
+                yield return new CodeInstruction(OpCodes.Pop); // retire null → [capi, command]
+                yield return new CodeInstruction(OpCodes.Call, toReplaceWith); // consomme [capi, command]
+                found = true;
+                continue; // skip le Callvirt original
+            }
+
+            yield return instruction;
+        }
+
+        if (!found)
+            throw new ArgumentException("Cannot find SendChatMessage in GuiDialogEditWayPoint.onSave");
     }
 }
