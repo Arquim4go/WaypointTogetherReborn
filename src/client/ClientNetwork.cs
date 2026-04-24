@@ -1,6 +1,5 @@
 using System.Linq;
 using Vintagestory.API.Client;
-using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 using WaypointTogetherReborn.network.packets;
@@ -37,6 +36,7 @@ public class ClientNetwork
             ShareWaypoint(message);
             return;
         }
+
         channel.SendPacket(new ShareWaypointPacket(message, api.World.Player.PlayerUID, pos.X, pos.Y, pos.Z));
     }
 
@@ -77,11 +77,9 @@ public class ClientNetwork
             api.SendChatMessage($"/waypoint modify {myExistingId} {color} {icon} {pinned} {name}");
         }
         else
-        {
-            double x = packet.PosX - (api.World.BlockAccessor.MapSizeX / 2);
-            double y = packet.PosY;
-            double z = packet.PosZ - (api.World.BlockAccessor.MapSizeZ / 2);
-            api.SendChatMessage($"/waypoint addati {icon} {x} {y} {z} {pinned} {color} {name}");
+        { 
+            // Pour addati (waypoint inexistant chez le destinataire) (= devant les coord - passer en absolu)
+            api.SendChatMessage($"/waypoint addati {icon} ={packet.PosX} ={packet.PosY} ={packet.PosZ} {pinned} {color} {name}");
         }
     }
 }
