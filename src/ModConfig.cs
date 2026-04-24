@@ -19,7 +19,7 @@ static class ModConfig
 {
     public static Config ClientConfig { get; private set; }
 
-    private const string ClientConfigFile = "WaypointTogetherContinued.json";
+    private const string ClientConfigFile = "WaypointTogetherReborn.json";
 
     public static void ReadConfig(ICoreAPI api)
     {
