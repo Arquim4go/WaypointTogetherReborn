@@ -16,7 +16,7 @@ public class ClientNetwork
     {
         this.api = api;
 
-        channel = api.Network.RegisterChannel("malin.waypointtogethercontinued");
+        channel = api.Network.RegisterChannel("jeff.waypointtogetherreborn");
         channel.RegisterMessageType<ShareWaypointPacket>();
         channel.RegisterMessageType<ShareWaypointPacketFromServer>();
         channel.SetMessageHandler<ShareWaypointPacketFromServer>(this.HandlePacket);
