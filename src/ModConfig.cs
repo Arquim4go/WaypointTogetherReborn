@@ -51,14 +51,16 @@ static class ModConfig
     {
         api.StoreModConfig(new Config(), ClientConfigFile);
     }
+    
+    private static void GenerateClientConfig(ICoreAPI api, Config previousConfig)
+    {
+        api.StoreModConfig(new Config(previousConfig), ClientConfigFile);
+    }
 
     private static Config LoadClientConfig(ICoreAPI api)
     {
         return api.LoadModConfig<Config>(ClientConfigFile);
     }
 
-    private static void GenerateClientConfig(ICoreAPI api, Config previousConfig)
-    {
-        api.StoreModConfig(new Config(previousConfig), ClientConfigFile);
-    }
+
 }

@@ -15,7 +15,7 @@ public class ClientNetwork
     public ClientNetwork(ICoreClientAPI api)
     {
         this.api = api;
-        channel = api.Network.RegisterChannel("jeff.waypointtogetherreborn");
+        channel = api.Network.RegisterChannel("client.waypointtogetherreborn");
         channel.RegisterMessageType<ShareWaypointPacket>();
         channel.SetMessageHandler<ShareWaypointPacket>(HandlePacket);
     }

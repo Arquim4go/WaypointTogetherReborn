@@ -9,7 +9,7 @@ public class ServerNetwork
 
     public ServerNetwork(ICoreServerAPI api)
     {
-        _channel = api.Network.RegisterChannel("jeff.waypointtogetherreborn");
+        _channel = api.Network.RegisterChannel("client.waypointtogetherreborn");
         _channel.RegisterMessageType<ShareWaypointPacket>();
         _channel.SetMessageHandler<ShareWaypointPacket>(HandlePacket);
     }
