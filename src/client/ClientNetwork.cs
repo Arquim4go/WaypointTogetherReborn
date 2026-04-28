@@ -1,8 +1,8 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
-using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 using WaypointTogetherReborn.network.packets;
 
@@ -82,7 +82,12 @@ public class ClientNetwork
         else
         { 
             // Pour addati (waypoint inexistant chez le destinataire) (= devant les coord - passer en absolu)
-            api.SendChatMessage($"/waypoint addati {icon} ={packet.PosX} ={packet.PosY} ={packet.PosZ} {pinned} {color} {name}");
+            string x = packet.PosX.ToString(CultureInfo.InvariantCulture);
+            string y = packet.PosY.ToString(CultureInfo.InvariantCulture);
+            string z = packet.PosZ.ToString(CultureInfo.InvariantCulture);
+            
+            api.Logger.Notification($"[ClientNetwork] Coordonnées : ${x},{y},{z}");
+            api.SendChatMessage($"/waypoint addati {icon} ={x} ={y} ={z} {pinned} {color} {name}");
         }
     }
 }
