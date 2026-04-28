@@ -11,10 +11,10 @@ using Vintagestory.GameContent;
 namespace WaypointTogetherReborn.patches;
 
 [HarmonyPatch(typeof(GuiDialogAddWayPoint), "ComposeDialog")]
-public static class AddWaypointComposeDialogPatch
+public static class WaypointAdd
 {
     public static readonly MethodInfo AddShareComponentMethod =
-        AccessTools.Method(typeof(AddWaypointComposeDialogPatch), nameof(AddShareComponent));
+        AccessTools.Method(typeof(WaypointAdd), nameof(AddShareComponent));
 
     public static GuiComposer AddShareComponent(GuiComposer composer, ref ElementBounds leftColumn,
         ref ElementBounds rightColumn)
@@ -60,6 +60,8 @@ public static class AddWaypointOnSavePatch
 
     public static void BroadcastWaypoint(ICoreClientAPI capi, string message)
     {
+        capi.Logger.Notification("[AddWaypoint] BroadcastWaypoint appelé : " + message);
+        
         var sw = capi.Gui.OpenedGuis
             .OfType<GuiDialogAddWayPoint>()
             .FirstOrDefault()

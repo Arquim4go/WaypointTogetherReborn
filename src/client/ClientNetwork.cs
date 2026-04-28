@@ -1,6 +1,8 @@
+using System;
 using System.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 using WaypointTogetherReborn.network.packets;
 
@@ -65,11 +67,12 @@ public class ClientNetwork
         int myExistingId = -1;
         if (waypointLayer.Waypoints != null)
         {
+            const double tolerance = 0.001;
             myExistingId = waypointLayer.Waypoints.FindIndex(x =>
                 x.Position != null &&
-                x.Position.X == packet.PosX &&
-                x.Position.Y == packet.PosY &&
-                x.Position.Z == packet.PosZ);
+                Math.Abs(x.Position.X - packet.PosX) < tolerance &&
+                Math.Abs(x.Position.Y - packet.PosY) < tolerance &&
+                Math.Abs(x.Position.Z - packet.PosZ) < tolerance);
         }
 
         if (myExistingId != -1)

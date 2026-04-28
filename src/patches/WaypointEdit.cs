@@ -6,15 +6,18 @@ using System.Reflection.Emit;
 using HarmonyLib;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
+using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using WaypointTogetherReborn.client;
+using WaypointTogetherReborn.network.packets;
 
 namespace WaypointTogetherReborn.patches;
 
 [HarmonyPatch(typeof(GuiDialogEditWayPoint), "ComposeDialog")]
-public static class EditWaypointComposeDialogPatch
+public static class WaypointEdit
 {
     public static readonly MethodInfo EditShareComponentMethod =
-        AccessTools.Method(typeof(EditWaypointComposeDialogPatch), nameof(EditShareComponent));
+        AccessTools.Method(typeof(WaypointEdit), nameof(EditShareComponent));
 
     public static GuiComposer EditShareComponent(GuiComposer composer, ref ElementBounds leftColumn,
         ref ElementBounds rightColumn)
@@ -70,6 +73,8 @@ public static class EditWaypointOnSavePatch
 
     public static void BroadcastWaypoint(ICoreClientAPI capi, string message)
     {
+        capi.Logger.Notification("[EditWaypoint] BroadcastWaypoint appelé : " + message);
+        
         var dialog = capi.Gui.OpenedGuis
             .OfType<GuiDialogEditWayPoint>()
             .FirstOrDefault();
