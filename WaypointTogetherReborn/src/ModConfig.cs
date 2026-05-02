@@ -6,12 +6,14 @@ namespace WaypointTogetherReborn;
 class Config
 {
     public bool DefaultSharing { get; set; } = false;
+    public bool BlockSharedFromOthers { get; set; } = false;
     public Config()
     {
     }
     public Config(Config? previousConfig)
     {
         DefaultSharing = previousConfig?.DefaultSharing ?? false;
+        BlockSharedFromOthers = previousConfig?.BlockSharedFromOthers ?? false;
     }
 }
 
