@@ -1,0 +1,117 @@
+﻿Index: src/client/ClientNetwork.cs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>using System;\r\nusing System.Linq;\r\nusing Vintagestory.API.Client;\r\nusing Vintagestory.API.MathTools;\r\nusing Vintagestory.API.Util;\r\nusing Vintagestory.GameContent;\r\nusing WaypointTogetherReborn.network.packets;\r\n\r\nnamespace WaypointTogetherReborn.client;\r\n\r\npublic class ClientNetwork\r\n{\r\n    private readonly ICoreClientAPI api;\r\n    private readonly IClientNetworkChannel channel;\r\n    private string lastMessage = \"\";\r\n\r\n    public ClientNetwork(ICoreClientAPI api)\r\n    {\r\n        this.api = api;\r\n        channel = api.Network.RegisterChannel(\"client.waypointtogetherreborn\");\r\n        channel.RegisterMessageType<ShareWaypointPacket>();\r\n        channel.SetMessageHandler<ShareWaypointPacket>(HandlePacket);\r\n    }\r\n\r\n    // Pour le Add (sans position)\r\n    public void ShareWaypoint(string message)\r\n    {\r\n        if (string.IsNullOrEmpty(message)) return;\r\n        channel.SendPacket(new ShareWaypointPacket(message, api.World.Player.PlayerUID));\r\n    }\r\n\r\n    // Pour le Edit (avec position)\r\n    public void ShareWaypoint(string message, Vec3d pos)\r\n    {\r\n        if (string.IsNullOrEmpty(message)) return;\r\n        if (pos == null)\r\n        {\r\n            ShareWaypoint(message);\r\n            return;\r\n        }\r\n\r\n        channel.SendPacket(new ShareWaypointPacket(message, api.World.Player.PlayerUID, pos.X, pos.Y, pos.Z));\r\n    }\r\n\r\n    private void HandlePacket(ShareWaypointPacket packet)\r\n    {\r\n        if (lastMessage == packet.Message) return;\r\n        lastMessage = packet.Message;\r\n\r\n        if (!packet.Message.StartsWith(\"/waypoint modify\"))\r\n        {\r\n            api.SendChatMessage(packet.Message);\r\n            return;\r\n        }\r\n\r\n        // Edit : cherche le waypoint par position\r\n        string[] split = packet.Message.Split(' ');\r\n        string color = split[3];\r\n        string icon = split[4];\r\n        string pinned = split[5];\r\n        string name = string.Join(' ', split.Skip(6));\r\n\r\n        var maplayers = api.ModLoader.GetModSystem<WorldMapManager>().MapLayers;\r\n        var waypointLayer = maplayers.Find(x => x is WaypointMapLayer) as WaypointMapLayer;\r\n        if (waypointLayer == null) return;\r\n\r\n        int myExistingId = -1;\r\n        if (waypointLayer.Waypoints != null)\r\n        {\r\n            const double tolerance = 0.001;\r\n            myExistingId = waypointLayer.Waypoints.FindIndex(x =>\r\n                x.Position != null &&\r\n                Math.Abs(x.Position.X - packet.PosX) < tolerance &&\r\n                Math.Abs(x.Position.Y - packet.PosY) < tolerance &&\r\n                Math.Abs(x.Position.Z - packet.PosZ) < tolerance);\r\n        }\r\n\r\n        if (myExistingId != -1)\r\n        {\r\n            api.SendChatMessage($\"/waypoint modify {myExistingId} {color} {icon} {pinned} {name}\");\r\n        }\r\n        else\r\n        { \r\n            // Pour addati (waypoint inexistant chez le destinataire) (= devant les coord - passer en absolu)\r\n            api.SendChatMessage($\"/waypoint addati {icon} ={packet.PosX} ={packet.PosY} ={packet.PosZ} {pinned} {color} {name}\");\r\n        }\r\n    }\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/client/ClientNetwork.cs b/src/client/ClientNetwork.cs
+--- a/src/client/ClientNetwork.cs	(revision 400a6ed66e5887a22b6bf8b2e98657ef5af98758)
++++ b/src/client/ClientNetwork.cs	(date 1777404337366)
+@@ -1,6 +1,7 @@
+ using System;
+ using System.Linq;
+ using Vintagestory.API.Client;
++using Vintagestory.API.Common;
+ using Vintagestory.API.MathTools;
+ using Vintagestory.API.Util;
+ using Vintagestory.GameContent;
+@@ -10,23 +11,43 @@
+ 
+ public class ClientNetwork
+ {
+-    private readonly ICoreClientAPI api;
+-    private readonly IClientNetworkChannel channel;
+-    private string lastMessage = "";
++    private readonly ICoreClientAPI _api;
++    private readonly IClientNetworkChannel _channel;
++    private string _lastMessage = "";
++    private bool _playerDied = false;
+ 
++    
++    
+     public ClientNetwork(ICoreClientAPI api)
+     {
+-        this.api = api;
+-        channel = api.Network.RegisterChannel("client.waypointtogetherreborn");
+-        channel.RegisterMessageType<ShareWaypointPacket>();
+-        channel.SetMessageHandler<ShareWaypointPacket>(HandlePacket);
++        this._api = api;
++        api.Event.PlayerDeath += OnPlayerDeath;
++        api.Event.PlayerEntitySpawn += OnPlayerRespawn;
++        
++        _channel = api.Network.RegisterChannel("client.waypointtogetherreborn");
++        _channel.RegisterMessageType<ShareWaypointPacket>();
++        _channel.SetMessageHandler<ShareWaypointPacket>(HandlePacket);
++    }
++    
++    private void OnPlayerDeath(IClientPlayer player)
++    {
++        _playerDied = true;
++    }
++    
++    private void OnPlayerRespawn(IClientPlayer player)
++    {
++        _playerDied = false;
+     }
+ 
+     // Pour le Add (sans position)
+     public void ShareWaypoint(string message)
+     {
+         if (string.IsNullOrEmpty(message)) return;
+-        channel.SendPacket(new ShareWaypointPacket(message, api.World.Player.PlayerUID));
++        if (_playerDied)
++        {
++            return;
++        }
++        _channel.SendPacket(new ShareWaypointPacket(message, _api.World.Player.PlayerUID));
+     }
+ 
+     // Pour le Edit (avec position)
+@@ -39,17 +60,17 @@
+             return;
+         }
+ 
+-        channel.SendPacket(new ShareWaypointPacket(message, api.World.Player.PlayerUID, pos.X, pos.Y, pos.Z));
++        _channel.SendPacket(new ShareWaypointPacket(message, _api.World.Player.PlayerUID, pos.X, pos.Y, pos.Z));
+     }
+ 
+     private void HandlePacket(ShareWaypointPacket packet)
+     {
+-        if (lastMessage == packet.Message) return;
+-        lastMessage = packet.Message;
++        if (_lastMessage == packet.Message) return;
++        _lastMessage = packet.Message;
+ 
+         if (!packet.Message.StartsWith("/waypoint modify"))
+         {
+-            api.SendChatMessage(packet.Message);
++            _api.SendChatMessage(packet.Message);
+             return;
+         }
+ 
+@@ -60,7 +81,7 @@
+         string pinned = split[5];
+         string name = string.Join(' ', split.Skip(6));
+ 
+-        var maplayers = api.ModLoader.GetModSystem<WorldMapManager>().MapLayers;
++        var maplayers = _api.ModLoader.GetModSystem<WorldMapManager>().MapLayers;
+         var waypointLayer = maplayers.Find(x => x is WaypointMapLayer) as WaypointMapLayer;
+         if (waypointLayer == null) return;
+ 
+@@ -77,12 +98,12 @@
+ 
+         if (myExistingId != -1)
+         {
+-            api.SendChatMessage($"/waypoint modify {myExistingId} {color} {icon} {pinned} {name}");
++            _api.SendChatMessage($"/waypoint modify {myExistingId} {color} {icon} {pinned} {name}");
+         }
+         else
+         { 
+             // Pour addati (waypoint inexistant chez le destinataire) (= devant les coord - passer en absolu)
+-            api.SendChatMessage($"/waypoint addati {icon} ={packet.PosX} ={packet.PosY} ={packet.PosZ} {pinned} {color} {name}");
++            _api.SendChatMessage($"/waypoint addati {icon} ={packet.PosX} ={packet.PosY} ={packet.PosZ} {pinned} {color} {name}");
+         }
+     }
+ }
+\ No newline at end of file
