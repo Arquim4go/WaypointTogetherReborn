@@ -3,9 +3,9 @@
   "modid": "waypointtogetherreborn",
   "name": "Waypoint Together Reborn",
   "authors": ["Jeffyshewan"],
-  "version": "2.3.3",
+  "version": "2.3.4",
   "description": "This mod help you share your waypoints with your friends",
   "dependencies": {
-    "game": "1.22.0"
+    "game": "1.22.1"
   }
 }

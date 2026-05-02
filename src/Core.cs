@@ -36,7 +36,7 @@ public class Core : ModSystem
 
     public override void Dispose()
     {
-        patcher.Dispose();
+        patcher?.Dispose();
 
         base.Dispose();
     }
